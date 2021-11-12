@@ -3,6 +3,9 @@ import XLSX from "xlsx";
 const EXCLUDE_KEYS = ["!ref", "!merges", "!margins"];
 
 const subtractLetter = (value) => {
+  //* A1 A2 AA3 AB2 AB3 AAAAB1
+
+  //* AAAAB1 [A,A,A,A,B,1,2,3] => [A,A,A,A,B] => AAAB
   const regex = /^[a-zA-Z]+$/;
   return value
     .split("")
@@ -54,6 +57,7 @@ const getRange = ({ sheet, letters }: any) => {
   return new Promise((resolve, reject) => {
     const letter = Object.keys(letters)[0];
     const values = [letter.toUpperCase()];
+
     const res = Object.keys(sheet)
       .filter((key) => values.includes(subtractLetter(key)))
       .map((item) => subtractNumber(item))
@@ -87,6 +91,7 @@ const getRow = ({ headers, sheet, letters, num }) => {
   return new Promise((resolve, reject) => {
     const keys: any[] = generateCoordinate({ letters, value: num });
     const row: any = generateRow({ headers });
+    // const row = {};
     Object.keys(sheet).forEach((key) => {
       if (keys.includes(key)) {
         const header = headers[subtractLetter(key)];
@@ -95,6 +100,44 @@ const getRow = ({ headers, sheet, letters, num }) => {
     });
 
     resolve({ row });
+  });
+};
+
+//eslint-disable-next-line
+const getSheets = async ({ SHEETS }) => {
+  return SHEETS.map(async (sheet) => {
+    const { letters }: any = await getLetters({ sheet });
+    const { min, values }: any = await getRange({
+      sheet,
+      letters,
+    });
+    const { headers }: any = await getHeaders({
+      sheet,
+      letters,
+      min,
+    });
+
+    const res = values
+      .filter((num) => num !== min)
+      .map(async (num) => {
+        const { row }: any = await getRow({
+          headers,
+          sheet,
+          letters,
+          num,
+        });
+
+        return row;
+      });
+
+    const rows = await Promise.all(res);
+    // console.log(min);
+    // console.log(values, "values");
+    // console.log(letters, "letters");
+    // console.log(headers);
+    // console.log(rows, "este es mi resultado XD");
+
+    return rows;
   });
 };
 
@@ -109,39 +152,10 @@ export async function handleDropAsync(e) {
     (sheet) => sheet["!ref"]
   );
 
-  const sheet = SHEETS[0];
+  const sheets = await getSheets({ SHEETS });
 
-  const { letters }: any = await getLetters({ sheet });
-  const { min, values }: any = await getRange({
-    sheet,
-    letters,
-  });
-  const { headers }: any = await getHeaders({
-    sheet,
-    letters,
-    min,
-  });
+  const res = await Promise.all(sheets);
 
-  const res = values
-    .filter((num) => num !== min)
-    .map(async (num) => {
-      const { row }: any = await getRow({
-        headers,
-        sheet,
-        letters,
-        num,
-      });
-
-      return row;
-    });
-
-  const rows = await Promise.all(res);
-
-  // console.log(min, max);
-  // console.log(values);
-  // console.log(letters,"letters");
-  // console.log(workbook);
-  // console.log(headers);
-
-  console.log(rows, "este es mi resultado XD");
+  console.log(res.length);
+  console.log(res);
 }
