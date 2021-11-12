@@ -105,7 +105,8 @@ const getRow = ({ headers, sheet, letters, num }) => {
 
 //eslint-disable-next-line
 const getSheets = async ({ SHEETS }) => {
-  return SHEETS.map(async (sheet) => {
+  return Object.keys(SHEETS).map(async (key) => {
+    const sheet = SHEETS[key];
     const { letters }: any = await getLetters({ sheet });
     const { min, values }: any = await getRange({
       sheet,
@@ -131,13 +132,10 @@ const getSheets = async ({ SHEETS }) => {
       });
 
     const rows = await Promise.all(res);
-    // console.log(min);
-    // console.log(values, "values");
-    // console.log(letters, "letters");
-    // console.log(headers);
-    // console.log(rows, "este es mi resultado XD");
-
-    return rows;
+    return {
+      sheet: key,
+      rows,
+    };
   });
 };
 
@@ -148,11 +146,17 @@ export async function handleDropAsync(e) {
   const data = await f.arrayBuffer();
   const workbook = XLSX.read(data);
 
-  const SHEETS = Object.values(workbook.Sheets).filter(
-    (sheet) => sheet["!ref"]
-  );
+  const SHEETS = {};
 
-  const sheets = await getSheets({ SHEETS });
+  Object.keys(workbook.Sheets)
+    .filter((key) => workbook.Sheets[key]["!ref"])
+    .forEach((key) => {
+      if (!SHEETS[key]) {
+        SHEETS[key] = workbook.Sheets[key];
+      }
+    });
+
+  const sheets: any = await getSheets({ SHEETS });
 
   const res = await Promise.all(sheets);
 
